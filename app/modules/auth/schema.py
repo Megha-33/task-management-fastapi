@@ -26,3 +26,12 @@ class UserResponseSchema(BaseModel):
     model_config = {
         "from_attributes": True
     }
+    
+    
+class LoginSchema(BaseModel):
+    email: EmailStr
+    password: str
+    
+class TokenSchema(BaseModel):
+    access_token: str
+    token_type: str

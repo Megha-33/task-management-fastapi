@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_DB: str
 
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True
