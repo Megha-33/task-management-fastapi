@@ -1,16 +1,19 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-
 from app.core.config import settings
 from app.core.database import get_db
+from app.routes.index import api_router
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION
 )
 
-
+app.include_router(
+    api_router,
+    prefix="/api/v1"
+)
 @app.get("/")
 async def root():
     return {
