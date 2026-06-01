@@ -1,6 +1,12 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.task import Task
+
 from enum import Enum
 from sqlalchemy import String, Boolean, Enum as SqlEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import BaseModel
 
 
@@ -42,4 +48,9 @@ class User(BaseModel):
     is_verified: Mapped[bool] = mapped_column(
         Boolean,
         default=False
+    )
+    
+    tasks: Mapped[list["Task"]] = relationship(
+    back_populates="user",
+    cascade="all, delete-orphan"
     )
