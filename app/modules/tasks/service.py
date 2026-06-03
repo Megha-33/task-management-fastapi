@@ -10,11 +10,22 @@ from app.modules.tasks.schema import (
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from fastapi import (
     HTTPException,
     status
+)
+
+from sqlalchemy import (
+    select,
+    or_,
+    asc,
+    desc
+)
+
+from app.modules.tasks.query_schema import (
+    TaskQueryParams
 )
 
 class TaskService:
@@ -67,22 +78,122 @@ class TaskService:
 
         return task
     
-    
+            
     @staticmethod
     async def get_tasks(
         current_user: User,
-        db: AsyncSession
+        db: AsyncSession,
+        params: TaskQueryParams
     ):
 
-        result = await db.execute(
-            select(Task).where(
-                Task.user_id == current_user.id
-            )
+        base_query = select(Task).where(
+            Task.user_id == current_user.id
         )
 
-        return result.scalars().all()
-    
-    
+        # ------------------
+        # Filtering
+        # ------------------
+
+        if params.status:
+            base_query = base_query.where(
+                Task.status == params.status
+            )
+
+        if params.priority:
+            base_query = base_query.where(
+                Task.priority == params.priority
+            )
+
+        # ------------------
+        # Search
+        # ------------------
+
+        if params.search:
+
+            base_query = base_query.where(
+                or_(
+                    Task.title.ilike(
+                        f"%{params.search}%"
+                    ),
+                    Task.description.ilike(
+                        f"%{params.search}%"
+                    )
+                )
+            )
+
+        # ------------------
+        # Count Query
+        # ------------------
+
+        count_query = select(
+            func.count()
+        ).select_from(
+            base_query.subquery()
+        )
+
+        total = await db.scalar(
+            count_query
+        )
+
+        # ------------------
+        # Sorting
+        # ------------------
+
+        allowed_sort_fields = {
+            "created_at": Task.created_at,
+            "updated_at": Task.updated_at,
+            "due_date": Task.due_date,
+            "title": Task.title,
+            "priority": Task.priority,
+            "status": Task.status
+        }
+
+        sort_column = allowed_sort_fields.get(
+            params.sort_by,
+            Task.created_at
+        )
+
+        if params.order.lower() == "asc":
+            base_query = base_query.order_by(
+                asc(sort_column)
+            )
+        else:
+            base_query = base_query.order_by(
+                desc(sort_column)
+            )
+
+        # ------------------
+        # Pagination
+        # ------------------
+
+        offset = (
+            params.page - 1
+        ) * params.size
+
+        query = (
+            base_query
+            .offset(offset)
+            .limit(params.size)
+        )
+
+        result = await db.execute(
+            query
+        )
+
+        tasks = result.scalars().all()
+
+        pages = (
+            (total + params.size - 1)
+            // params.size
+        )
+
+        return {
+            "items": tasks,
+            "total": total,
+            "page": params.page,
+            "size": params.size,
+            "pages": pages
+        }
     @staticmethod
     async def get_task(
         task_id: UUID,

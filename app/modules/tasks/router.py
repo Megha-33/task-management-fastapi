@@ -26,6 +26,20 @@ from app.modules.tasks.service import (
 
 from uuid import UUID
 
+from fastapi import Query
+
+from app.modules.tasks.query_schema import (
+    TaskQueryParams
+)
+
+from app.models.task import (
+    TaskStatus,
+    TaskPriority
+)
+
+from app.modules.tasks.response_schema import (
+    PaginatedTaskResponse
+)
 
 router = APIRouter(
     prefix="/tasks",
@@ -55,21 +69,45 @@ async def create_task(
     
 @router.get(
     "",
-    response_model=list[
-        TaskResponseSchema
-    ]
+    response_model=PaginatedTaskResponse
 )
 async def get_tasks(
+    page: int = Query(
+        1,
+        ge=1
+    ),
+    size: int = Query(
+        10,
+        ge=1,
+        le=100
+    ),
+    status: TaskStatus | None = None,
+    priority: TaskPriority | None = None,
+    search: str | None = None,
+    sort_by: str = "created_at",
+    order: str = "desc",
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(
         get_current_user
     )
 ):
 
+    params = TaskQueryParams(
+        page=page,
+        size=size,
+        status=status,
+        priority=priority,
+        search=search,
+        sort_by=sort_by,
+        order=order
+    )
+
     return await TaskService.get_tasks(
         current_user=current_user,
-        db=db
+        db=db,
+        params=params
     )
+    
     
 @router.get(
     "/{task_id}",
